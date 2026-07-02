@@ -41,9 +41,16 @@ public struct IJPreviewView :	View {
 	
 	/// The body of the view.
 	public var body :	some View {
+		@Bindable var viewModel = viewModel
+		
 		let bgBinding = Binding<String>(
 			get: { backgroundType.rawValue },
 			set: { backgroundType = IJBackgroundType(rawValue: $0) ?? .checkerboard }
+		)
+		
+		let joinModeBinding = Binding<String>(
+			get: { viewModel.joinMode == .horizontal ? "Horizontal" : "Vertical" },
+			set: { viewModel.joinMode = $0 == "Horizontal" ? .horizontal : .vertical }
 		)
 		
 		VStack (spacing :	0) {
@@ -135,9 +142,24 @@ public struct IJPreviewView :	View {
 				.frame (width: 240)
 				.background (Color(nsColor: .windowBackgroundColor))
 			}
+			
+			Divider ()
+			
+			/// Bottom Controls
+			HStack (spacing: 30) {
+				UMUISegmentedBar (label: "Join Mode", options: ["Horizontal", "Vertical"], selection: joinModeBinding, labelWidth: 80)
+					.frame (width: 300)
+				
+				Spacer ()
+				
+				UMUINumberControl (title: "Padding", value: $viewModel.spacing, range: -500...500, unit: "px", decimals: 0, labelWidth: 80, fieldWidth: 60)
+					.frame (width: 350)
+			}
+			.padding ()
+			.background (Color(nsColor: .windowBackgroundColor))
 		}
 		.frame (minWidth :	800,
-				minHeight :	600)
+				minHeight :	680)
 	}
 	
 	/// Calculates and sets the initial zoom to fit the entire image.
