@@ -148,14 +148,29 @@ public struct IJPreviewView :	View {
 			Divider ()
 			
 			/// Bottom Controls
-			HStack (spacing: 30) {
+			HStack (spacing: 20) {
 				UMUISegmentedBar (label: "Join Mode", options: ["Horizontal", "Vertical"], selection: joinModeBinding, labelWidth: 80)
-					.frame (width: 300)
+					.frame (width: 250)
+				
+				Spacer ()
+				
+				VStack (spacing: 4) {
+					if !viewModel.processedItems.isEmpty {
+						Text ("Final Resolution: \(Int (viewModel.finalResolution.width)) x \(Int (viewModel.finalResolution.height)) px")
+							.font (.caption)
+							.foregroundColor (.secondary)
+					}
+					
+					UMUICapsuleButton ("Join and Save", style: .accent) {
+						viewModel.joinAndSave ()
+					}
+					.disabled (viewModel.processedItems.isEmpty)
+				}
 				
 				Spacer ()
 				
 				UMUINumberControl (title: "Padding", value: $viewModel.spacing, range: -500...500, unit: "px", decimals: 0, labelWidth: 80, fieldWidth: 60)
-					.frame (width: 350)
+					.frame (width: 280)
 			}
 			.padding ()
 			.background (Color(nsColor: .windowBackgroundColor))
