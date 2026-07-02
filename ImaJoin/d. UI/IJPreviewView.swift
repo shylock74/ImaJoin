@@ -121,6 +121,8 @@ public struct IJPreviewView :	View {
 					}
 					.onChange(of: viewModel.finalResolution) { _, newSize in
 						contentSize = newSize
+					}
+					.onChange(of: viewModel.joinMode) { _, _ in
 						zoomToFit(in: mainGeo.size)
 					}
 				}
