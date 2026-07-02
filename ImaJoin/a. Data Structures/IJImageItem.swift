@@ -11,6 +11,9 @@ public struct IJImageItem {
 	/// The actual image data.
 	public let image :	NSImage
 	
+	/// The autocropped version of the image.
+	public let croppedImage :	NSImage
+	
 	/// Initializes a new image item.
 	/// - Parameter url: The file URL of the image.
 	/// - Parameter image: The NSImage representation of the image.
@@ -18,5 +21,18 @@ public struct IJImageItem {
 				 image :	NSImage) {
 		self.url = url
 		self.image = image
+		self.croppedImage = IJImageJoiner.autocrop (image)
+	}
+	
+	/// Initializes a new image item with a precalculated cropped image.
+	/// - Parameter url: The file URL of the image.
+	/// - Parameter image: The NSImage representation of the image.
+	/// - Parameter croppedImage: The precalculated cropped version of the image.
+	public init (url :		URL,
+				 image :	NSImage,
+				 croppedImage :	NSImage) {
+		self.url = url
+		self.image = image
+		self.croppedImage = croppedImage
 	}
 }

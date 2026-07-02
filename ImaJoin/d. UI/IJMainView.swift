@@ -16,8 +16,39 @@ public struct IJMainView :	View {
 		@Environment (\.openWindow) var openWindow
 		
 		let joinModeBinding = Binding<String>(
-			get: { viewModel.joinMode == .horizontal ? "Horizontal" : "Vertical" },
-			set: { viewModel.joinMode = $0 == "Horizontal" ? .horizontal : .vertical }
+			get: {
+				switch viewModel.joinMode {
+				case .horizontal: return "Horizontal"
+				case .vertical: return "Vertical"
+				case .grid: return "Grid"
+				}
+			},
+			set: {
+				switch $0 {
+				case "Horizontal": viewModel.joinMode = .horizontal
+				case "Vertical": viewModel.joinMode = .vertical
+				case "Grid": viewModel.joinMode = .grid
+				default: viewModel.joinMode = .horizontal
+				}
+			}
+		)
+		
+		let gridPriorityBinding = Binding<String>(
+			get: {
+				switch viewModel.gridPriority {
+				case .columns: return "Columns"
+				case .rows: return "Rows"
+				case .none: return "None"
+				}
+			},
+			set: {
+				switch $0 {
+				case "Columns": viewModel.gridPriority = .columns
+				case "Rows": viewModel.gridPriority = .rows
+				case "None": viewModel.gridPriority = .none
+				default: viewModel.gridPriority = .columns
+				}
+			}
 		)
 		
 		VStack (spacing : 0) {
@@ -29,8 +60,21 @@ public struct IJMainView :	View {
 			
 			UMUISection ("Settings") {
 				VStack (spacing: 12) {
-					UMUISegmentedBar (label: "Join Mode", options: ["Horizontal", "Vertical"], selection: joinModeBinding, labelWidth: 80)
+					UMUISegmentedBar (label: "Join Mode", options: ["Horizontal", "Vertical", "Grid"], selection: joinModeBinding, labelWidth: 80)
+					
+					if viewModel.joinMode == .grid {
+						UMUINumberControl (title: "Rows", value: $viewModel.gridRows, range: 1...100, unit: "", decimals: 0, labelWidth: 80, fieldWidth: 60)
+						UMUINumberControl (title: "Columns", value: $viewModel.gridCols, range: 1...100, unit: "", decimals: 0, labelWidth: 80, fieldWidth: 60)
+						UMUISegmentedBar (label: "Priority", options: ["Columns", "Rows", "None"], selection: gridPriorityBinding, labelWidth: 80)
+					}
+					
 					UMUINumberControl (title: "Padding", value: $viewModel.spacing, range: -500...500, unit: "px", decimals: 0, labelWidth: 80, fieldWidth: 60)
+					HStack {
+						Spacer ()
+							.frame (width :	80)
+						UMUISmallSwitch ("Autocrop", isOn :	$viewModel.autocrop, size :	.small)
+						Spacer ()
+					}
 				}
 			}
 			

@@ -49,8 +49,39 @@ public struct IJPreviewView :	View {
 		)
 		
 		let joinModeBinding = Binding<String>(
-			get: { viewModel.joinMode == .horizontal ? "Horizontal" : "Vertical" },
-			set: { viewModel.joinMode = $0 == "Horizontal" ? .horizontal : .vertical }
+			get: {
+				switch viewModel.joinMode {
+				case .horizontal: return "Horizontal"
+				case .vertical: return "Vertical"
+				case .grid: return "Grid"
+				}
+			},
+			set: {
+				switch $0 {
+				case "Horizontal": viewModel.joinMode = .horizontal
+				case "Vertical": viewModel.joinMode = .vertical
+				case "Grid": viewModel.joinMode = .grid
+				default: viewModel.joinMode = .horizontal
+				}
+			}
+		)
+		
+		let gridPriorityBinding = Binding<String>(
+			get: {
+				switch viewModel.gridPriority {
+				case .columns: return "Columns"
+				case .rows: return "Rows"
+				case .none: return "None"
+				}
+			},
+			set: {
+				switch $0 {
+				case "Columns": viewModel.gridPriority = .columns
+				case "Rows": viewModel.gridPriority = .rows
+				case "None": viewModel.gridPriority = .none
+				default: viewModel.gridPriority = .columns
+				}
+			}
 		)
 		
 		VStack (spacing :	0) {
@@ -148,29 +179,48 @@ public struct IJPreviewView :	View {
 			Divider ()
 			
 			/// Bottom Controls
-			HStack (spacing: 20) {
-				UMUISegmentedBar (label: "Join Mode", options: ["Horizontal", "Vertical"], selection: joinModeBinding, labelWidth: 80)
-					.frame (width: 250)
-				
-				Spacer ()
-				
-				VStack (spacing: 4) {
-					if !viewModel.processedItems.isEmpty {
-						Text ("Final Resolution: \(Int (viewModel.finalResolution.width)) x \(Int (viewModel.finalResolution.height)) px")
-							.font (.caption)
-							.foregroundColor (.secondary)
+			VStack (spacing: 12) {
+				HStack (spacing: 20) {
+					UMUISegmentedBar (label: "Join Mode", options: ["Horizontal", "Vertical", "Grid"], selection: joinModeBinding, labelWidth: 80)
+						.frame (width: 250)
+					
+					UMUISmallSwitch ("Autocrop", isOn :	$viewModel.autocrop, size :	.small)
+					
+					Spacer ()
+					
+					VStack (spacing: 4) {
+						if !viewModel.processedItems.isEmpty {
+							Text ("Final Resolution: \(Int (viewModel.finalResolution.width)) x \(Int (viewModel.finalResolution.height)) px")
+								.font (.caption)
+								.foregroundColor (.secondary)
+						}
+						
+						UMUICapsuleButton ("Join and Save", style: .accent) {
+							viewModel.joinAndSave ()
+						}
+						.disabled (viewModel.processedItems.isEmpty)
 					}
 					
-					UMUICapsuleButton ("Join and Save", style: .accent) {
-						viewModel.joinAndSave ()
-					}
-					.disabled (viewModel.processedItems.isEmpty)
+					Spacer ()
+					
+					UMUINumberControl (title: "Padding", value: $viewModel.spacing, range: -500...500, unit: "px", decimals: 0, labelWidth: 80, fieldWidth: 60)
+						.frame (width: 280)
 				}
 				
-				Spacer ()
-				
-				UMUINumberControl (title: "Padding", value: $viewModel.spacing, range: -500...500, unit: "px", decimals: 0, labelWidth: 80, fieldWidth: 60)
-					.frame (width: 280)
+				if viewModel.joinMode == .grid {
+					HStack (spacing: 20) {
+						UMUINumberControl (title: "Rows", value: $viewModel.gridRows, range: 1...100, unit: "", decimals: 0, labelWidth: 80, fieldWidth: 60)
+							.frame (width: 250)
+						
+						UMUINumberControl (title: "Columns", value: $viewModel.gridCols, range: 1...100, unit: "", decimals: 0, labelWidth: 80, fieldWidth: 60)
+							.frame (width: 250)
+						
+						Spacer ()
+						
+						UMUISegmentedBar (label: "Priority", options: ["Columns", "Rows", "None"], selection: gridPriorityBinding, labelWidth: 80)
+							.frame (width: 280)
+					}
+				}
 			}
 			.padding ()
 			.background (Color(nsColor: .windowBackgroundColor))
@@ -227,6 +277,10 @@ public struct IJPreviewView :	View {
 			let rectH = minimapHeight * (clBottom - clY)
 			
 			ZStack(alignment: .center) {
+				backgroundView
+					.frame(width: minimapWidth, height: minimapHeight)
+					.clipped()
+				
 				contentView
 					.scaleEffect(scale)
 					.frame(width: minimapWidth, height: minimapHeight)
@@ -269,15 +323,65 @@ public struct IJPreviewView :	View {
 					spacing :	CGFloat (viewModel.spacing)) {
 				ForEach (viewModel.processedItems,
 						 id :	\.url) { item in
-					Image (nsImage :	item.image)
+					Image (nsImage :	viewModel.autocrop ? item.croppedImage : item.image)
 				}
 			}
-		} else {
+		} else if viewModel.joinMode == .vertical {
 			VStack (alignment :	.center,
 					spacing :	CGFloat (viewModel.spacing)) {
 				ForEach (viewModel.processedItems,
 						 id :	\.url) { item in
-					Image (nsImage :	item.image)
+					Image (nsImage :	viewModel.autocrop ? item.croppedImage : item.image)
+				}
+			}
+		} else if viewModel.joinMode == .grid {
+			let maxW = viewModel.processedItems.map { viewModel.autocrop ? $0.croppedImage.size.width : $0.image.size.width }.max() ?? 0
+			let maxH = viewModel.processedItems.map { viewModel.autocrop ? $0.croppedImage.size.height : $0.image.size.height }.max() ?? 0
+			
+			let count = viewModel.processedItems.count
+			
+			// We can reuse the same layout math to determine rows/cols
+			let actualCols: Int = {
+				let initialRows = max(1, Int(viewModel.gridRows))
+				let initialCols = max(1, Int(viewModel.gridCols))
+				if count > initialRows * initialCols {
+					switch viewModel.gridPriority {
+					case .columns: return initialCols
+					case .rows: return max(1, Int(ceil(Double(count) / Double(initialRows))))
+					case .none: return initialCols
+					}
+				}
+				return initialCols
+			}()
+			
+			let actualRows: Int = {
+				let initialRows = max(1, Int(viewModel.gridRows))
+				let initialCols = max(1, Int(viewModel.gridCols))
+				if count > initialRows * initialCols {
+					switch viewModel.gridPriority {
+					case .columns: return max(1, Int(ceil(Double(count) / Double(initialCols))))
+					case .rows: return initialRows
+					case .none: return initialRows
+					}
+				}
+				return initialRows
+			}()
+			
+			Grid(horizontalSpacing: CGFloat(viewModel.spacing), verticalSpacing: CGFloat(viewModel.spacing)) {
+				ForEach(0..<actualRows, id: \.self) { rowIndex in
+					GridRow {
+						ForEach(0..<actualCols, id: \.self) { colIndex in
+							let itemIndex = rowIndex * actualCols + colIndex
+							if itemIndex < count {
+								let item = viewModel.processedItems[itemIndex]
+								Image(nsImage: viewModel.autocrop ? item.croppedImage : item.image)
+									.frame(width: maxW, height: maxH, alignment: .center)
+							} else {
+								Color.clear
+									.frame(width: maxW, height: maxH)
+							}
+						}
+					}
 				}
 			}
 		}

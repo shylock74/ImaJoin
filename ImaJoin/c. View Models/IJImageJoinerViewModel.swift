@@ -10,6 +10,18 @@ public class IJImageJoinerViewModel {
 	/// The current join mode selected by the user.
 	public var joinMode :	IJJoinMode = .horizontal
 	
+	/// The number of rows for grid mode.
+	public var gridRows :	Double = 2
+	
+	/// The number of columns for grid mode.
+	public var gridCols :	Double = 2
+	
+	/// The grid priority overflow behavior.
+	public var gridPriority :	IJGridPriority = .columns
+	
+	/// A flag indicating if autocrop is enabled.
+	public var autocrop :	Bool = false
+	
 	/// A flag indicating if an operation is currently in progress.
 	public var isProcessing :	Bool = false
 	
@@ -29,7 +41,11 @@ public class IJImageJoinerViewModel {
 	public var finalResolution :	NSSize {
 		return IJImageJoiner.calculateResultSize (items :	processedItems,
 												  mode :	joinMode,
-												  spacing :	spacing)
+												  spacing :	spacing,
+												  autocrop :	autocrop,
+												  gridRows :	Int (gridRows),
+												  gridCols :	Int (gridCols),
+												  gridPriority: gridPriority)
 	}
 	
 	/// Default public initializer.
@@ -74,7 +90,11 @@ public class IJImageJoinerViewModel {
 		DispatchQueue.global (qos :	.userInitiated).async (execute : {
 			let savedURL = IJImageJoiner.joinAndSave (items :	self.processedItems,
 													  mode :	self.joinMode,
-													  spacing :	self.spacing)
+													  spacing :	self.spacing,
+													  autocrop :	self.autocrop,
+													  gridRows :	Int (self.gridRows),
+													  gridCols :	Int (self.gridCols),
+													  gridPriority: self.gridPriority)
 			
 			DispatchQueue.main.async (execute : {
 				self.lastSavedURL = savedURL
