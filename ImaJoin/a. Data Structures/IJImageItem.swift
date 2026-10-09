@@ -3,7 +3,10 @@ import AppKit
 
 /// IJImageItem represents a single image item dropped into the app.
 /// It contains the original URL and the NSImage representation.
-public struct IJImageItem {
+public struct IJImageItem : Identifiable {
+	/// The stable identifier.
+	public let id = UUID()
+
 	/// The file URL of the image.
 	/// Used for alphabetical sorting and determining the output folder.
 	public let url :	URL

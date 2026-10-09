@@ -318,73 +318,38 @@ public struct IJPreviewView :	View {
 	/// The view containing the images arranged according to the mode.
 	@ViewBuilder
 	private var contentView :	some View {
-		if viewModel.joinMode == .horizontal {
-			HStack (alignment :	.center,
-					spacing :	CGFloat (viewModel.spacing)) {
-				ForEach (viewModel.processedItems,
-						 id :	\.url) { item in
-					Image (nsImage :	viewModel.autocrop ? item.croppedImage : item.image)
-				}
-			}
-		} else if viewModel.joinMode == .vertical {
-			VStack (alignment :	.center,
-					spacing :	CGFloat (viewModel.spacing)) {
-				ForEach (viewModel.processedItems,
-						 id :	\.url) { item in
-					Image (nsImage :	viewModel.autocrop ? item.croppedImage : item.image)
-				}
-			}
-		} else if viewModel.joinMode == .grid {
-			let maxW = viewModel.processedItems.map { viewModel.autocrop ? $0.croppedImage.size.width : $0.image.size.width }.max() ?? 0
-			let maxH = viewModel.processedItems.map { viewModel.autocrop ? $0.croppedImage.size.height : $0.image.size.height }.max() ?? 0
-			
-			let count = viewModel.processedItems.count
-			
-			// We can reuse the same layout math to determine rows/cols
-			let actualCols: Int = {
-				let initialRows = max(1, Int(viewModel.gridRows))
-				let initialCols = max(1, Int(viewModel.gridCols))
-				if count > initialRows * initialCols {
-					switch viewModel.gridPriority {
-					case .columns: return initialCols
-					case .rows: return max(1, Int(ceil(Double(count) / Double(initialRows))))
-					case .none: return initialCols
-					}
-				}
-				return initialCols
-			}()
-			
-			let actualRows: Int = {
-				let initialRows = max(1, Int(viewModel.gridRows))
-				let initialCols = max(1, Int(viewModel.gridCols))
-				if count > initialRows * initialCols {
-					switch viewModel.gridPriority {
-					case .columns: return max(1, Int(ceil(Double(count) / Double(initialCols))))
-					case .rows: return initialRows
-					case .none: return initialRows
-					}
-				}
-				return initialRows
-			}()
-			
-			Grid(horizontalSpacing: CGFloat(viewModel.spacing), verticalSpacing: CGFloat(viewModel.spacing)) {
-				ForEach(0..<actualRows, id: \.self) { rowIndex in
-					GridRow {
-						ForEach(0..<actualCols, id: \.self) { colIndex in
-							let itemIndex = rowIndex * actualCols + colIndex
-							if itemIndex < count {
-								let item = viewModel.processedItems[itemIndex]
-								Image(nsImage: viewModel.autocrop ? item.croppedImage : item.image)
-									.frame(width: maxW, height: maxH, alignment: .center)
-							} else {
-								Color.clear
-									.frame(width: maxW, height: maxH)
-							}
-						}
-					}
-				}
+		let (canvasSize, frames) = IJImageJoiner.calculateLayout(
+			items: viewModel.processedItems,
+			mode: viewModel.joinMode,
+			spacing: viewModel.spacing,
+			autocrop: viewModel.autocrop,
+			gridRows: Int(viewModel.gridRows),
+			gridCols: Int(viewModel.gridCols),
+			gridPriority: viewModel.gridPriority,
+			sizingMode: viewModel.sizingMode,
+			scalingMode: viewModel.scalingMode,
+			customWidth: viewModel.customWidth,
+			customHeight: viewModel.customHeight,
+			horizontalAlignment: viewModel.horizontalAlignment,
+			verticalAlignment: viewModel.verticalAlignment,
+			powerOfTwo: viewModel.powerOfTwo
+		)
+		
+		ZStack {
+			ForEach(0..<frames.count, id: \.self) { index in
+				let layoutFrame = frames[index]
+				let workImage = viewModel.autocrop ? layoutFrame.item.croppedImage : layoutFrame.item.image
+				
+				Image(nsImage: workImage)
+					.resizable()
+					.frame(width: layoutFrame.drawRect.width, height: layoutFrame.drawRect.height)
+					.position(
+						x: layoutFrame.drawRect.minX + layoutFrame.drawRect.width / 2,
+						y: canvasSize.height - (layoutFrame.drawRect.minY + layoutFrame.drawRect.height / 2)
+					)
 			}
 		}
+		.frame(width: canvasSize.width, height: canvasSize.height)
 	}
 }
 
